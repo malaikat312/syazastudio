@@ -15,12 +15,13 @@ export default function CameraCapture({
   const [showFlash, setShowFlash] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [cameraError, setCameraError] = useState(null);
+  const [facingMode, setFacingMode] = useState("user"); // "user" (front) or "environment" (back)
 
   useEffect(() => {
     const initCamera = async () => {
       try {
         setCameraError(null);
-        await startCamera();
+        await startCamera(facingMode);
       } catch (err) {
         console.error("Camera access failed:", err);
         setCameraError("Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.");
@@ -31,7 +32,12 @@ export default function CameraCapture({
     return () => {
       stopCamera();
     };
-  }, []);
+  }, [facingMode]);
+
+  const toggleCamera = () => {
+    if (isCountingDown) return;
+    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+  };
 
   // Synthesize sound effects using standard HTML5 AudioContext
   const playSynthSound = (frequency, duration, type = "sine") => {
@@ -82,7 +88,8 @@ export default function CameraCapture({
         setTimeout(() => setShowFlash(false), 200);
 
         try {
-          const image = capture();
+          const isMirrored = facingMode === "user";
+          const image = capture(isMirrored);
           if (image) {
             onCapture(image);
           }
@@ -114,18 +121,35 @@ export default function CameraCapture({
           </p>
         </div>
 
-        {/* Sound Toggle */}
-        <button
-          onClick={() => setSoundEnabled(!soundEnabled)}
-          className={`p-2 rounded-xl transition-all border cursor-pointer ${
-            soundEnabled
-              ? "bg-indigo-50 border-indigo-100 text-indigo-600"
-              : "bg-gray-50 border-gray-100 text-gray-400"
-          }`}
-          title={soundEnabled ? "Nonaktifkan Suara" : "Aktifkan Suara"}
-        >
-          {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-        </button>
+        {/* Camera Toggle & Sound Toggles */}
+        <div className="flex gap-2">
+          {/* Switch Camera */}
+          <button
+            onClick={toggleCamera}
+            disabled={isCountingDown}
+            className={`p-2 rounded-xl transition-all border cursor-pointer ${
+              facingMode === "user"
+                ? "bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100/50"
+                : "bg-purple-50 border-purple-100 text-purple-600 hover:bg-purple-100/50"
+            } ${isCountingDown ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={facingMode === "user" ? "Ganti ke Kamera Belakang" : "Ganti ke Kamera Depan"}
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+
+          {/* Sound Toggle */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`p-2 rounded-xl transition-all border cursor-pointer ${
+              soundEnabled
+                ? "bg-indigo-50 border-indigo-100 text-indigo-600"
+                : "bg-gray-50 border-gray-100 text-gray-400"
+            }`}
+            title={soundEnabled ? "Nonaktifkan Suara" : "Aktifkan Suara"}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
 
       {/* Camera Live Feed Area */}
@@ -139,7 +163,7 @@ export default function CameraCapture({
             <button
               onClick={() => {
                 setCameraError(null);
-                startCamera();
+                startCamera(facingMode);
               }}
               className="mt-3 px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
             >
@@ -148,19 +172,20 @@ export default function CameraCapture({
           </div>
         ) : (
           <>
-            {/* Mirroring applied via -scale-x-100 for natural camera look */}
+            {/* Mirroring applied via -scale-x-100 ONLY for user/front camera */}
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className={`w-full h-full object-cover -scale-x-100 transition-all duration-300 ${getFilterClass(
-                currentFilter
-              )}`}
+              className={`w-full h-full object-cover transition-all duration-300 ${
+                facingMode === "user" ? "-scale-x-100" : ""
+              } ${getFilterClass(currentFilter)}`}
             />
 
             {/* Canvas for capturing (hidden) */}
             <canvas ref={canvasRef} className="hidden" />
+
 
             {/* Countdown Overlay */}
             {isCountingDown && (
