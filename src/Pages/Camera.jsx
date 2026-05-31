@@ -5,13 +5,20 @@ import FrameSelector from "../components/FrameSelector";
 import CameraCapture from "../components/CameraCapture";
 import PhotoSlotManager from "../components/PhotoSlotManager";
 import FinalPreview from "../components/FinalPreview";
+import { detectTransparentHoles } from "../utils/holeDetector";
 import { Sparkles, ArrowLeft, Layers, Image as ImageIcon, Camera as CameraIcon } from "lucide-react";
 
 export default function Camera() {
   const navigate = useNavigate();
   
   // App state
-  const [photos, setPhotos] = useState([null, null, null, null]);
+  const [photoSlots, setPhotoSlots] = useState([
+    { id: 0, y: 60, left: 50, width: 500, height: 333 },
+    { id: 1, y: 433, left: 50, width: 500, height: 333 },
+    { id: 2, y: 806, left: 50, width: 500, height: 333 },
+    { id: 3, y: 1179, left: 50, width: 500, height: 333 }
+  ]);
+  const [photos, setPhotos] = useState(() => Array(4).fill(null));
   const [activeSlot, setActiveSlot] = useState(0);
   const [selectedFrame, setSelectedFrame] = useState(PREMADE_FRAMES[0]);
   const [customFrame, setCustomFrame] = useState(null);
@@ -19,6 +26,25 @@ export default function Camera() {
   const [customTagline, setCustomTagline] = useState("");
   const [currentFilter, setCurrentFilter] = useState("normal");
   const [activeTab, setActiveTab] = useState("studio"); // "studio" or "preview"
+  const [isEditingLayout, setIsEditingLayout] = useState(false);
+
+  // Sync photos array with dynamic slots count
+  useEffect(() => {
+    setPhotos((prev) => {
+      const next = [...prev];
+      if (next.length < photoSlots.length) {
+        while (next.length < photoSlots.length) {
+          next.push(null);
+        }
+      } else if (next.length > photoSlots.length) {
+        return next.slice(0, photoSlots.length);
+      }
+      return next;
+    });
+    if (activeSlot >= photoSlots.length) {
+      setActiveSlot(Math.max(0, photoSlots.length - 1));
+    }
+  }, [photoSlots.length]);
 
   // Check if all slots are filled
   const isAllFilled = photos.every((p) => p !== null);
@@ -101,9 +127,43 @@ export default function Camera() {
     }
   };
 
+  const handleUploadCustomFrame = (imageDataUrl) => {
+    setCustomFrame(imageDataUrl);
+    
+    if (imageDataUrl) {
+      const img = new Image();
+      img.src = imageDataUrl;
+      img.onload = () => {
+        const detectedSlots = detectTransparentHoles(img);
+        if (detectedSlots && detectedSlots.length > 0) {
+          setPhotoSlots(detectedSlots);
+        } else {
+          // Fallback to standard 4 slots
+          setPhotoSlots([
+            { id: 0, y: 60, left: 50, width: 500, height: 333 },
+            { id: 1, y: 433, left: 50, width: 500, height: 333 },
+            { id: 2, y: 806, left: 50, width: 500, height: 333 },
+            { id: 3, y: 1179, left: 50, width: 500, height: 333 }
+          ]);
+          alert("Tidak ada lubang transparan terdeteksi. Menggunakan tata letak standar 4 slot.");
+        }
+      };
+    }
+  };
+
+  const handleClearCustomFrame = () => {
+    setCustomFrame(null);
+    setPhotoSlots([
+      { id: 0, y: 60, left: 50, width: 500, height: 333 },
+      { id: 1, y: 433, left: 50, width: 500, height: 333 },
+      { id: 2, y: 806, left: 50, width: 500, height: 333 },
+      { id: 3, y: 1179, left: 50, width: 500, height: 333 }
+    ]);
+  };
+
   const handleResetSession = () => {
     if (window.confirm("Apakah Anda yakin ingin menghapus semua foto dan memulai sesi baru?")) {
-      setPhotos([null, null, null, null]);
+      setPhotos(Array(photoSlots.length).fill(null));
       setActiveSlot(0);
       setCurrentFilter("normal");
       setActiveTab("studio");
@@ -191,8 +251,8 @@ export default function Camera() {
                 selectedFrame={selectedFrame}
                 onSelectFrame={setSelectedFrame}
                 customFrame={customFrame}
-                onUploadCustomFrame={setCustomFrame}
-                onClearCustomFrame={() => setCustomFrame(null)}
+                onUploadCustomFrame={handleUploadCustomFrame}
+                onClearCustomFrame={handleClearCustomFrame}
                 customText={customText}
                 onChangeCustomText={setCustomText}
                 customTagline={customTagline}
@@ -222,6 +282,10 @@ export default function Camera() {
               {/* Photo Strip view */}
               <PhotoSlotManager
                 photos={photos}
+                photoSlots={photoSlots}
+                setPhotoSlots={setPhotoSlots}
+                isEditingLayout={isEditingLayout}
+                setIsEditingLayout={setIsEditingLayout}
                 activeSlot={activeSlot}
                 setActiveSlot={setActiveSlot}
                 selectedFrame={selectedFrame}
@@ -240,6 +304,7 @@ export default function Camera() {
           <div className="w-full flex justify-center py-6 animate-scale-in">
             <FinalPreview
               photos={photos}
+              photoSlots={photoSlots}
               selectedFrame={selectedFrame}
               customFrame={customFrame}
               customText={customText}

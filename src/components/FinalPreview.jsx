@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from "react";
-import { CANVAS_WIDTH, CANVAS_HEIGHT, PHOTO_SLOTS } from "../constants";
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from "../constants";
 import { Download, RefreshCw, Sparkles, CheckCircle } from "lucide-react";
 
 export default function FinalPreview({
   photos,
+  photoSlots,
   selectedFrame,
   customFrame,
   customText,
@@ -142,8 +143,8 @@ export default function FinalPreview({
       }
 
       // 2. Draw Photos with clipping masks, filters, and scale/offset properties
-      for (let i = 0; i < PHOTO_SLOTS.length; i++) {
-        const slot = PHOTO_SLOTS[i];
+      for (let i = 0; i < photoSlots.length; i++) {
+        const slot = photoSlots[i];
         const photo = photos[i];
 
         if (photo) {
@@ -151,7 +152,7 @@ export default function FinalPreview({
 
           // Create clipping rect for this photo slot
           ctx.beginPath();
-          ctx.rect(50, slot.y, slot.width, slot.height);
+          ctx.rect(slot.left, slot.y, slot.width, slot.height);
           ctx.clip();
 
           // Apply filters
@@ -174,7 +175,7 @@ export default function FinalPreview({
           }
 
           // Default centered coordinate inside slot
-          const cx = 50 + (slot.width - renderWidth) / 2;
+          const cx = slot.left + (slot.width - renderWidth) / 2;
           const cy = slot.y + (slot.height - renderHeight) / 2;
 
           // Apply scale & nudge translations
@@ -185,7 +186,7 @@ export default function FinalPreview({
           const ty = (photo.yOffset || 0) * scaleFactor;
 
           // We transform context to the center of the slot to scale, then translate, then draw
-          ctx.translate(50 + slot.width / 2, slot.y + slot.height / 2);
+          ctx.translate(slot.left + slot.width / 2, slot.y + slot.height / 2);
           ctx.scale(scale, scale);
           ctx.translate(tx / scale, ty / scale);
           ctx.drawImage(
@@ -283,7 +284,7 @@ export default function FinalPreview({
           Bilik Foto Anda Siap!
         </h3>
         <p className="text-xs text-gray-500">
-          Semua 4 slot terisi dengan sukses. Anda dapat mengunduh hasil 2x6 strip Anda sekarang.
+          Semua {photoSlots.length} slot terisi dengan sukses. Anda dapat mengunduh hasil 2x6 strip Anda sekarang.
         </p>
       </div>
 
